@@ -15,29 +15,29 @@ func main() {
 	fmt.Println("Starting Peril server...")
 	conn, err := amqp.Dial(connectionString)
 	if err != nil {
-		fmt.Printf("Failed to connect to RabbitMQ: %s\n", err)
+		fmt.Printf("Server failed to connect to RabbitMQ: %s\n", err)
 		return
 	}
 	defer conn.Close()
-	fmt.Println("Connected to RabbitMQ successfully!")
+	fmt.Println("Server connected to RabbitMQ successfully!")
 
 	ch, err := conn.Channel()
 	if err != nil {
-		fmt.Printf("Failed to open a channel: %s\n", err)
+		fmt.Printf("Server failed to open a channel: %s\n", err)
 		return
 	}
 	defer ch.Close()
-	fmt.Println("Channel opened successfully!")
+	fmt.Println("Server channel opened successfully!")
 
 	val := routing.PlayingState{
 		IsPaused: true,
 	}
 	err = pubsub.PublishJSON(ch, routing.ExchangePerilDirect, routing.PauseKey, val)
 	if err != nil {
-		fmt.Printf("Failed to publish JSON: %s\n", err)
+		fmt.Printf("Server failed to publish JSON: %s\n", err)
 		return
 	}
-	fmt.Println("Published JSON message successfully!")
+	fmt.Println("Server published JSON message successfully!")
 	// wait for ctrl+c to exit
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt)
