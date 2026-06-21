@@ -2,9 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
 
+	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -19,7 +18,7 @@ func main() {
 		return
 	}
 	defer conn.Close()
-	fmt.Println("Server connected to RabbitMQ successfully!")
+	// fmt.Println("Server connected to RabbitMQ successfully!")
 
 	ch, err := conn.Channel()
 	if err != nil {
@@ -27,22 +26,46 @@ func main() {
 		return
 	}
 	defer ch.Close()
-	fmt.Println("Server channel opened successfully!")
+	// fmt.Println("Server channel opened successfully!")
 
-	val := routing.PlayingState{
-		IsPaused: true,
-	}
-	err = pubsub.PublishJSON(ch, routing.ExchangePerilDirect, routing.PauseKey, val)
-	if err != nil {
-		fmt.Printf("Server failed to publish JSON: %s\n", err)
-		return
-	}
-	fmt.Println("Server published JSON message successfully!")
-	// wait for ctrl+c to exit
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-	fmt.Println("") // so the ^C is on a separate line
+	gamelogic.PrintServerHelp()
 
-	fmt.Println("Shutting down Peril server...")
+inputLoop:
+	for {
+		words := gamelogic.GetInput()
+		if len(words) == 0 {
+			continue
+		}
+		cmd := words[0]
+		switch cmd {
+		case "pause":
+			val := routing.PlayingState{
+				IsPaused: true,
+			}
+			err = pubsub.PublishJSON(ch, routing.ExchangePerilDirect, routing.PauseKey, val)
+			if err != nil {
+				fmt.Printf("Server failed to publish JSON: %s\n", err)
+				return
+			}
+			fmt.Println("Server published pause message successfully!")
+		case "resume":
+			val := routing.PlayingState{
+				IsPaused: false,
+			}
+			err = pubsub.PublishJSON(ch, routing.ExchangePerilDirect, routing.PauseKey, val)
+			if err != nil {
+				fmt.Printf("Server failed to publish JSON: %s\n", err)
+				return
+			}
+			fmt.Println("Server published resume message successfully!")
+		case "help":
+			gamelogic.PrintServerHelp()
+		case "quit":
+			fmt.Println("Shutting down Peril server...")
+			break inputLoop
+		default:
+			fmt.Printf("Unknown command: %s\n", cmd)
+			gamelogic.PrintServerHelp()
+		}
+	}
 }
