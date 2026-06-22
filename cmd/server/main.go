@@ -30,7 +30,7 @@ func main() {
 
 	gamelogic.PrintServerHelp()
 
-inputLoop:
+replLoop:
 	for {
 		words := gamelogic.GetInput()
 		if len(words) == 0 {
@@ -62,7 +62,7 @@ inputLoop:
 			gamelogic.PrintServerHelp()
 		case "quit":
 			fmt.Println("Shutting down Peril server...")
-			break inputLoop
+			break replLoop
 		default:
 			fmt.Printf("Unknown command: %s\n", cmd)
 			gamelogic.PrintServerHelp()

@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"os/signal"
 	"strings"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
@@ -36,12 +34,39 @@ func main() {
 	}
 	defer ch.Close()
 	// fmt.Printf("Client queue declared and bound successfully! Queue name: %s\n", q.Name)
+	gamestate := gamelogic.NewGameState(username)
 
-	// wait for ctrl+c to exit
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-	fmt.Println("") // so the ^C is on a separate line
-
-	fmt.Println("Shutting down Peril client...")
+replLoop:
+	for {
+		words := gamelogic.GetInput()
+		if len(words) == 0 {
+			continue
+		}
+		cmd := words[0]
+		switch cmd {
+		case "spawn":
+			err := gamestate.CommandSpawn(words)
+			if err != nil {
+				fmt.Printf("Client error: %s\n", err)
+			}
+		case "move":
+			_, err := gamestate.CommandMove(words)
+			if err != nil {
+				fmt.Printf("Client error: %s\n", err)
+			}
+			// fmt.Printf("Moving %v to %v.\n", move.Units, move.ToLocation)
+		case "status":
+			gamestate.CommandStatus()
+		case "help":
+			gamelogic.PrintClientHelp()
+		case "spam":
+			fmt.Println("Spamming not allowed yet!")
+		case "quit":
+			gamelogic.PrintQuit()
+			break replLoop
+		default:
+			fmt.Printf("Unknown command: %s\n", cmd)
+			gamelogic.PrintClientHelp()
+		}
+	}
 }
