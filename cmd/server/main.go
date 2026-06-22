@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -27,6 +28,13 @@ func main() {
 	}
 	defer ch.Close()
 	// fmt.Println("Server channel opened successfully!")
+
+	topicCh, _, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilTopic, routing.GameLogSlug, strings.Join([]string{routing.GameLogSlug, "*"}, "."), pubsub.SimpleQueueDurable)
+	if err != nil {
+		fmt.Printf("Client failed to declare and bind queue: %s\n", err)
+		return
+	}
+	defer topicCh.Close()
 
 	gamelogic.PrintServerHelp()
 
