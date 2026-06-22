@@ -26,15 +26,13 @@ func main() {
 		fmt.Printf("Client error: %s\n", err)
 		return
 	}
+	gamestate := gamelogic.NewGameState(username)
 
-	ch, _, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect, strings.Join([]string{routing.PauseKey, username}, "."), routing.PauseKey, pubsub.SimpleQueueTransient)
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, strings.Join([]string{routing.PauseKey, username}, "."), routing.PauseKey, pubsub.SimpleQueueTransient, handlerPause(gamestate))
 	if err != nil {
-		fmt.Printf("Client failed to declare and bind queue: %s\n", err)
+		fmt.Printf("Client failed to subscribe to pause messages: %s\n", err)
 		return
 	}
-	defer ch.Close()
-	// fmt.Printf("Client queue declared and bound successfully! Queue name: %s\n", q.Name)
-	gamestate := gamelogic.NewGameState(username)
 
 replLoop:
 	for {
@@ -68,5 +66,12 @@ replLoop:
 			fmt.Printf("Unknown command: %s\n", cmd)
 			gamelogic.PrintClientHelp()
 		}
+	}
+}
+
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
+	return func(playingState routing.PlayingState) {
+		defer fmt.Print("> ")
+		gs.HandlePause(playingState)
 	}
 }

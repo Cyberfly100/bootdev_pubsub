@@ -32,6 +32,43 @@ func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 	return nil
 }
 
+func SubscribeJSON[T any](
+	conn *amqp.Connection,
+	exchange,
+	queueName,
+	key string,
+	queueType SimpleQueueType, // an enum to represent "durable" or "transient"
+	handler func(T),
+) error {
+	ch, q, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
+	if err != nil {
+		return err
+	}
+
+	deliveriesChan, err := ch.Consume(q.Name, "", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for delivery := range deliveriesChan {
+			var val T
+			err := json.Unmarshal(delivery.Body, &val)
+			if err != nil {
+				// If there's an error unmarshaling, we nack the message and continue to the next one.
+				delivery.Nack(false, false)
+				continue
+			}
+
+			handler(val)
+
+			delivery.Ack(false)
+		}
+	}()
+
+	return nil
+}
+
 func DeclareAndBind(
 	conn *amqp.Connection,
 	exchange,
