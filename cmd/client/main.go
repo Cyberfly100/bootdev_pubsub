@@ -21,6 +21,13 @@ func main() {
 	defer conn.Close()
 	fmt.Println("Client connected to RabbitMQ successfully!")
 
+	ch, err := conn.Channel()
+	if err != nil {
+		fmt.Printf("Client failed to open a channel: %s\n", err)
+		return
+	}
+	defer ch.Close()
+
 	username, err := gamelogic.ClientWelcome()
 	if err != nil {
 		fmt.Printf("Client error: %s\n", err)
@@ -31,6 +38,12 @@ func main() {
 	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect, strings.Join([]string{routing.PauseKey, username}, "."), routing.PauseKey, pubsub.SimpleQueueTransient, handlerPause(gamestate))
 	if err != nil {
 		fmt.Printf("Client failed to subscribe to pause messages: %s\n", err)
+		return
+	}
+
+	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilTopic, strings.Join([]string{routing.ArmyMovesPrefix, username}, "."), strings.Join([]string{routing.ArmyMovesPrefix, "*"}, "."), pubsub.SimpleQueueTransient, handlerMove(gamestate))
+	if err != nil {
+		fmt.Printf("Client failed to subscribe to army move messages: %s\n", err)
 		return
 	}
 
@@ -48,11 +61,15 @@ replLoop:
 				fmt.Printf("Client error: %s\n", err)
 			}
 		case "move":
-			_, err := gamestate.CommandMove(words)
+			move, err := gamestate.CommandMove(words)
 			if err != nil {
 				fmt.Printf("Client error: %s\n", err)
 			}
-			// fmt.Printf("Moving %v to %v.\n", move.Units, move.ToLocation)
+			err = pubsub.PublishJSON(ch, routing.ExchangePerilTopic, strings.Join([]string{routing.ArmyMovesPrefix, move.Player.Username}, "."), move)
+			if err != nil {
+				fmt.Printf("Client failed to publish army move: %s\n", err)
+			}
+			fmt.Printf("Client published army move to %s successfully!\n", move.ToLocation)
 		case "status":
 			gamestate.CommandStatus()
 		case "help":
@@ -73,5 +90,13 @@ func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
 	return func(playingState routing.PlayingState) {
 		defer fmt.Print("> ")
 		gs.HandlePause(playingState)
+	}
+}
+
+func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
+	return func(armyMove gamelogic.ArmyMove) {
+		defer fmt.Print("> ")
+		outcome := gs.HandleMove(armyMove)
+		fmt.Printf("%v", outcome)
 	}
 }
