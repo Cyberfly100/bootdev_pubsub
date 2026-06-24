@@ -31,7 +31,7 @@ func main() {
 
 	topicCh, _, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilTopic, routing.GameLogSlug, strings.Join([]string{routing.GameLogSlug, "*"}, "."), pubsub.SimpleQueueDurable)
 	if err != nil {
-		fmt.Printf("Client failed to declare and bind queue: %s\n", err)
+		fmt.Printf("Server failed to declare and bind queue: %s\n", err)
 		return
 	}
 	defer topicCh.Close()

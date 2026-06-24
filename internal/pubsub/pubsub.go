@@ -3,7 +3,6 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
-	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -74,13 +73,13 @@ func SubscribeJSON[T any](
 			switch ack_type {
 			case Ack:
 				msg.Ack(false)
-				log.Printf("Positive ack for message with routing key %s", msg.RoutingKey)
+				// log.Printf("Positive ack for message with routing key %s", msg.RoutingKey)
 			case NackRequeue:
 				msg.Nack(false, true)
-				log.Printf("Negative ack (requeue) for message with routing key %s", msg.RoutingKey)
+				// log.Printf("Negative ack (requeue) for message with routing key %s", msg.RoutingKey)
 			case NackDiscard:
 				msg.Nack(false, false)
-				log.Printf("Negative ack (discard) for message with routing key %s", msg.RoutingKey)
+				// log.Printf("Negative ack (discard) for message with routing key %s", msg.RoutingKey)
 			}
 		}
 	}()
