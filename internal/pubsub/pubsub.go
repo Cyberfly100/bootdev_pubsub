@@ -3,8 +3,17 @@ package pubsub
 import (
 	"context"
 	"encoding/json"
+	"log"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+)
+
+type Acktype int
+
+const (
+	Ack Acktype = iota
+	NackRequeue
+	NackDiscard
 )
 
 // SimpleQueueType is an "enum" type to represent transient vs durable queues.
@@ -38,7 +47,7 @@ func SubscribeJSON[T any](
 	queueName,
 	key string,
 	queueType SimpleQueueType, // an enum to represent "durable" or "transient"
-	handler func(T),
+	handler func(T) Acktype,
 ) error {
 	ch, q, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
@@ -51,18 +60,28 @@ func SubscribeJSON[T any](
 	}
 
 	go func() {
-		for delivery := range deliveriesChan {
+		for msg := range deliveriesChan {
 			var val T
-			err := json.Unmarshal(delivery.Body, &val)
+			err := json.Unmarshal(msg.Body, &val)
 			if err != nil {
 				// If there's an error unmarshaling, we nack the message and continue to the next one.
-				delivery.Nack(false, false)
+				msg.Nack(false, false)
 				continue
 			}
 
-			handler(val)
+			ack_type := handler(val)
 
-			delivery.Ack(false)
+			switch ack_type {
+			case Ack:
+				msg.Ack(false)
+				log.Printf("Positive ack for message with routing key %s", msg.RoutingKey)
+			case NackRequeue:
+				msg.Nack(false, true)
+				log.Printf("Negative ack (requeue) for message with routing key %s", msg.RoutingKey)
+			case NackDiscard:
+				msg.Nack(false, false)
+				log.Printf("Negative ack (discard) for message with routing key %s", msg.RoutingKey)
+			}
 		}
 	}()
 
