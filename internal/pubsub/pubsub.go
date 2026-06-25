@@ -88,6 +88,10 @@ func subscribe[T any](
 		return err
 	}
 
+	err = ch.Qos(10, 0, false)
+	if err != nil {
+		return err
+	}
 	deliveriesChan, err := ch.Consume(q.Name, "", false, false, false, false, nil)
 	if err != nil {
 		return err

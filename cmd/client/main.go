@@ -81,7 +81,7 @@ replLoop:
 		case "help":
 			gamelogic.PrintClientHelp()
 		case "spam":
-			fmt.Println("Spamming not allowed yet!")
+			CommandSpam(gamestate, words, ch)
 		case "quit":
 			gamelogic.PrintQuit()
 			break replLoop
