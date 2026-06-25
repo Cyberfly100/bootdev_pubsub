@@ -28,13 +28,11 @@ func main() {
 	}
 	defer ch.Close()
 	// fmt.Println("Server channel opened successfully!")
-
-	topicCh, _, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilTopic, routing.GameLogSlug, strings.Join([]string{routing.GameLogSlug, "*"}, "."), pubsub.SimpleQueueDurable)
+	err = pubsub.SubscribeGob(conn, routing.ExchangePerilTopic, routing.GameLogSlug, strings.Join([]string{routing.GameLogSlug, "*"}, "."), pubsub.SimpleQueueDurable, handlerLogs())
 	if err != nil {
-		fmt.Printf("Server failed to declare and bind queue: %s\n", err)
+		fmt.Printf("Server failed to subscribe to logs queue: %s\n", err)
 		return
 	}
-	defer topicCh.Close()
 
 	gamelogic.PrintServerHelp()
 

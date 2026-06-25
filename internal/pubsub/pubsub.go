@@ -5,9 +5,8 @@ import (
 	"context"
 	"encoding/gob"
 	"encoding/json"
-	"strings"
+	"fmt"
 
-	"github.com/bootdotdev/learn-pub-sub-starter/internal/routing"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -33,15 +32,10 @@ func PublishJSON[T any](ch *amqp.Channel, exchange, key string, val T) error {
 		return err
 	}
 
-	err = ch.PublishWithContext(context.Background(), exchange, key, false, false, amqp.Publishing{
+	return ch.PublishWithContext(context.Background(), exchange, key, false, false, amqp.Publishing{
 		ContentType: "application/json",
 		Body:        body,
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func SubscribeJSON[T any](
@@ -52,12 +46,7 @@ func SubscribeJSON[T any](
 	queueType SimpleQueueType, // an enum to represent "durable" or "transient"
 	handler func(T) Acktype,
 ) error {
-	err := subscribe(conn, exchange, queueName, key, queueType, handler, unmarshallerJSON)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return subscribe(conn, exchange, queueName, key, queueType, handler, unmarshallerJSON)
 }
 
 func PublishGob[T any](ch *amqp.Channel, exchange, key string, val T) error {
@@ -68,15 +57,10 @@ func PublishGob[T any](ch *amqp.Channel, exchange, key string, val T) error {
 		return err
 	}
 
-	err = ch.PublishWithContext(context.Background(), exchange, key, false, false, amqp.Publishing{
+	return ch.PublishWithContext(context.Background(), exchange, key, false, false, amqp.Publishing{
 		ContentType: "application/gob",
 		Body:        buffer.Bytes(),
 	})
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func SubscribeGob[T any](
@@ -87,12 +71,7 @@ func SubscribeGob[T any](
 	queueType SimpleQueueType, // an enum to represent "durable" or "transient"
 	handler func(T) Acktype,
 ) error {
-	err := subscribe(conn, exchange, queueName, key, queueType, handler, unmarshallerGob)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return subscribe(conn, exchange, queueName, key, queueType, handler, unmarshallerGob)
 }
 
 func subscribe[T any](
@@ -119,7 +98,8 @@ func subscribe[T any](
 			val, err := unmarshaller(msg.Body)
 			if err != nil {
 				// If there's an error decoding, we nack the message and continue to the next one.
-				msg.Nack(false, false)
+				//msg.Nack(false, false)
+				fmt.Printf("could not unmarshal message: %v\n", err)
 				continue
 			}
 
@@ -155,17 +135,6 @@ func unmarshallerJSON[T any](body []byte) (T, error) {
 	var val T
 	err := json.Unmarshal(body, &val)
 	return val, err
-}
-
-func PublishGameLog(ch *amqp.Channel, gl routing.GameLog, initiator string) error {
-	routingKey := strings.Join([]string{routing.GameLogSlug, initiator}, ".")
-
-	err := PublishGob(ch, routing.ExchangePerilTopic, routingKey, gl)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func DeclareAndBind(

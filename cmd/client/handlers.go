@@ -33,13 +33,13 @@ func handlerMove(gs *gamelogic.GameState, ch *amqp.Channel) func(gamelogic.ArmyM
 				Attacker: armyMove.Player,
 				Defender: player,
 			}
-			err := pubsub.PublishJSON(ch, routing.ExchangePerilTopic, strings.Join([]string{routing.WarRecognitionsPrefix, player.Username}, "."), data)
+			err := pubsub.PublishJSON(ch, routing.ExchangePerilTopic, strings.Join([]string{routing.WarRecognitionsPrefix, gs.GetUsername()}, "."), data)
 			if err != nil {
 				return pubsub.NackRequeue
 			}
 			return pubsub.Ack
 		case gamelogic.MoveOutcomeSamePlayer:
-			return pubsub.NackDiscard
+			return pubsub.Ack
 		default:
 			log.Printf("Unknown move outcome: %v", outcome)
 			return pubsub.NackDiscard
@@ -59,13 +59,7 @@ func handlerWar(gs *gamelogic.GameState, ch *amqp.Channel) func(gamelogic.Recogn
 			return pubsub.NackDiscard
 		case gamelogic.WarOutcomeOpponentWon, gamelogic.WarOutcomeDraw, gamelogic.WarOutcomeYouWon:
 			logMessage := createWarLogMessage(outcome, winner, loser)
-			initiator := recognition.Attacker.Username
-			gl := routing.GameLog{
-				CurrentTime: time.Now().UTC(),
-				Message:     logMessage,
-				Username:    initiator,
-			}
-			err := pubsub.PublishGameLog(ch, gl, initiator)
+			err := PublishGameLog(ch, gs.GetUsername(), logMessage)
 			if err != nil {
 				return pubsub.NackRequeue
 			}
@@ -86,4 +80,15 @@ func createWarLogMessage(outcome gamelogic.WarOutcome, winner string, loser stri
 	default:
 		return "Unknown war outcome."
 	}
+}
+
+func PublishGameLog(ch *amqp.Channel, initiator, msg string) error {
+	routingKey := strings.Join([]string{routing.GameLogSlug, initiator}, ".")
+	gl := routing.GameLog{
+		CurrentTime: time.Now().UTC(),
+		Message:     msg,
+		Username:    initiator,
+	}
+
+	return pubsub.PublishGob(ch, routing.ExchangePerilTopic, routingKey, gl)
 }
